@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14532d">
+<title>Monthly Expenses</title>
+<style>
+:root {
+  --bg: #f2f4f1; --surface: #ffffff; --ink: #1b2320; --muted: #66716c; --line: #dfe4df;
+  --accent: #14532d; --on-accent: #ffffff;
+  --paid: #14693d; --paid-bg: #dcf1e3;
+  --pend: #7a4f00; --pend-bg: #fbeccb;
+  --skip: #55605b; --skip-bg: #e6e9e6;
+  --over: #b3261e;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121714; --surface: #1b231f; --ink: #e8eee9; --muted: #98a59e; --line: #2c3731;
+    --accent: #2f8f5b; --on-accent: #ffffff;
+    --paid: #8be0ae; --paid-bg: #1d3a2a;
+    --pend: #f2c36b; --pend-bg: #3b2f14;
+    --skip: #aab5ae; --skip-bg: #29322d;
+    --over: #ff8a80;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  padding: env(safe-area-inset-top, 0) 0 env(safe-area-inset-bottom, 0);
+}
+main { max-width: 640px; margin: 0 auto; padding: 12px 14px 40px; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.month { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 12px; }
+.month h1 { font-size: 1.25rem; margin: 0; font-weight: 700; }
+.month button {
+  width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line);
+  background: var(--surface); font-size: 1.2rem;
+}
+
+.summary { background: var(--accent); color: var(--on-accent); border-radius: 16px; padding: 16px; }
+.summary .row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 3px 0; }
+.summary .label { opacity: .85; font-size: .9rem; }
+.summary .big { font-size: 1.9rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.summary .val { font-weight: 600; font-variant-numeric: tabular-nums; }
+.summary input {
+  width: 9.5em; text-align: right; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.3);
+  border-radius: 8px; padding: 6px 8px; color: inherit; font-variant-numeric: tabular-nums;
+}
+.bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,.22); margin: 12px 0 6px; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: #fff; width: 0; transition: width .25s; }
+.warn { color: #ffd2cc; font-weight: 600; }
+
+.list { margin: 16px 0 0; padding: 0; list-style: none; background: var(--surface); border-radius: 16px; border: 1px solid var(--line); }
+.item { display: grid; grid-template-columns: 1fr auto; gap: 8px 10px; padding: 12px 14px; border-top: 1px solid var(--line); align-items: center; }
+.item:first-child { border-top: 0; }
+.item .name { width: 100%; border: 0; background: transparent; padding: 6px 0; font-weight: 600; min-width: 0; }
+.item .amt { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+.item .amt input {
+  width: 8.5em; border: 1px solid var(--line); background: var(--bg); border-radius: 8px;
+  padding: 8px; font-variant-numeric: tabular-nums; color: var(--ink);
+}
+.status {
+  min-width: 88px; padding: 9px 12px; border-radius: 999px; border: 0; font-weight: 600; font-size: .9rem;
+}
+.status[data-s="paid"] { background: var(--paid-bg); color: var(--paid); }
+.status[data-s="pending"] { background: var(--pend-bg); color: var(--pend); }
+.status[data-s="skipped"] { background: var(--skip-bg); color: var(--skip); }
+.item.skipped .name, .item.skipped .amt input { text-decoration: line-through; color: var(--muted); }
+.item .del { background: none; border: 0; color: var(--muted); font-size: .85rem; padding: 6px 4px; justify-self: end; }
+.empty { padding: 20px; text-align: center; color: var(--muted); }
+
+form.add { display: grid; grid-template-columns: 1fr 7.5em auto; gap: 8px; margin-top: 16px; }
+form.add input { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 11px; min-width: 0; }
+form.add button, .tools button {
+  border: 0; background: var(--accent); color: var(--on-accent); border-radius: 10px; padding: 11px 16px; font-weight: 600;
+}
+.tools { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 24px; }
+.tools button { background: var(--surface); color: var(--ink); border: 1px solid var(--line); font-weight: 500; }
+.note { color: var(--muted); font-size: .85rem; margin-top: 10px; }
+#toast {
+  position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0)); transform: translateX(-50%);
+  background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+#toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<main>
+  <div class="month">
+    <button id="prev" aria-label="Previous month">‹</button>
+    <h1 id="monthLabel"></h1>
+    <button id="next" aria-label="Next month">›</button>
+  </div>
+
+  <section class="summary" aria-label="Summary">
+    <div class="row"><span class="label">Left to spend</span><span class="big" id="left"></span></div>
+    <div class="bar"><i id="barFill"></i></div>
+    <div class="row"><span class="label">Budget</span>
+      <input id="budget" type="text" inputmode="numeric" aria-label="Monthly budget in rupees"></div>
+    <div class="row"><span class="label">Paid</span><span class="val" id="paid"></span></div>
+    <div class="row"><span class="label">Pending</span><span class="val" id="pending"></span></div>
+    <div class="row" id="warnRow" hidden><span class="warn" id="warn"></span></div>
+  </section>
+
+  <ul class="list" id="list"></ul>
+
+  <form class="add" id="addForm">
+    <input id="newName" type="text" placeholder="New expense" aria-label="Expense name" required>
+    <input id="newAmt" type="text" inputmode="numeric" placeholder="Rs." aria-label="Amount in rupees" required>
+    <button type="submit">Add</button>
+  </form>
+
+  <div class="tools">
+    <button id="export">Back up</button>
+    <button id="import">Restore</button>
+    <button id="resetMonth">Reset statuses</button>
+    <input id="file" type="file" accept="application/json" hidden>
+  </div>
+  <p class="note">Data stays on this phone. Back up regularly: clearing browser data erases it.</p>
+</main>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+const KEY = "expenseTracker.v3";
+const OLD_KEY = "monthlyExpenseDataV2";
+const DEFAULTS = [
+  ["Father", 20000], ["Electricity", 15000], ["Grocery", 30000], ["Petrol", 30000],
+  ["Askari Shopping", 13000], ["Milk", 14880], ["Yoga", 3000], ["Farhat", 20000],
+  ["Ibro", 6000], ["Van", 5000], ["Karate", 4000], ["Cricket", 6000],
+  ["Internet", 3710], ["Haroon’s gym", 3000], ["Infaq", 1500], ["Committee", 10000], ["AI", 2200]
+];
+const NEXT = { pending: "paid", paid: "skipped", skipped: "pending" };
+const LABEL = { pending: "Pending", paid: "Paid", skipped: "Skipped" };
+
+const $ = (s) => document.querySelector(s);
+const fmt = (n) => "Rs. " + Number(n || 0).toLocaleString("en-PK");
+const num = (v) => parseInt(String(v).replace(/\D/g, ""), 10) || 0;
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const monthKey = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+
+let state = load();
+let ym = monthKey(new Date());
+
+function toast(msg) {
+  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast.id); toast.id = setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (s && typeof s.budget === "number" && s.months && typeof s.months === "object") return s;
+    }
+  } catch (e) { /* fall through to defaults */ }
+  // One-time migration from the first version of this app
+  let items = null;
+  try {
+    const old = JSON.parse(localStorage.getItem(OLD_KEY) || "null");
+    if (Array.isArray(old)) items = old.map((o) => ({ id: uid(), name: String(o.name), amount: num(o.amount), status: "pending" }));
+  } catch (e) { /* ignore */ }
+  return { budget: 250000, months: items ? { [monthKey(new Date())]: items } : {} };
+}
+
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(state)); }
+  catch (e) { toast("Could not save. Storage may be full or blocked."); }
+}
+
+// A new month copies names and amounts from the nearest earlier month, with every status reset to pending.
+function items() {
+  if (!state.months[ym]) {
+    const earlier = Object.keys(state.months).filter((k) => k < ym).sort().pop();
+    const source = earlier
+      ? state.months[earlier].map((i) => [i.name, i.amount])
+      : DEFAULTS;
+    state.months[ym] = source.map(([name, amount]) => ({ id: uid(), name, amount, status: "pending" }));
+    save();
+  }
+  return state.months[ym];
+}
+
+function updateSummary() {
+  const list = items();
+  const sum = (s) => list.filter((i) => i.status === s).reduce((t, i) => t + i.amount, 0);
+  const paid = sum("paid"), pending = sum("pending");
+  const left = state.budget - paid - pending;
+  $("#paid").textContent = fmt(paid);
+  $("#pending").textContent = fmt(pending);
+  $("#left").textContent = fmt(Math.max(left, 0));
+  $("#barFill").style.width = (paid + pending ? Math.round((paid / (paid + pending)) * 100) : 0) + "%";
+  $("#warnRow").hidden = left >= 0;
+  $("#warn").textContent = left < 0 ? "Over budget by " + fmt(-left) : "";
+}
+
+function render() {
+  const [y, m] = ym.split("-").map(Number);
+  $("#monthLabel").textContent = new Date(y, m - 1, 1).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  $("#budget").value = state.budget.toLocaleString("en-PK");
+
+  const ul = $("#list"); ul.replaceChildren();
+  const list = items();
+  if (!list.length) {
+    const li = document.createElement("li"); li.className = "empty"; li.textContent = "No expenses yet. Add one below.";
+    ul.append(li);
+  }
+  for (const it of list) {
+    const li = document.createElement("li");
+    li.className = "item" + (it.status === "skipped" ? " skipped" : "");
+
+    const name = document.createElement("input");
+    name.className = "name"; name.value = it.name; name.setAttribute("aria-label", "Expense name");
+    name.addEventListener("change", () => { it.name = name.value.trim() || it.name; save(); render(); });
+
+    const btn = document.createElement("button");
+    btn.className = "status"; btn.dataset.s = it.status; btn.textContent = LABEL[it.status];
+    btn.addEventListener("click", () => { it.status = NEXT[it.status]; save(); render(); });
+
+    const amt = document.createElement("label"); amt.className = "amt";
+    const inp = document.createElement("input");
+    inp.type = "text"; inp.inputMode = "numeric"; inp.value = it.amount.toLocaleString("en-PK");
+    inp.disabled = it.status === "skipped"; inp.setAttribute("aria-label", it.name + " amount");
+    inp.addEventListener("focus", () => { inp.value = it.amount || ""; inp.select(); });
+    inp.addEventListener("input", () => { it.amount = num(inp.value); save(); updateSummary(); });
+    inp.addEventListener("blur", () => { inp.value = it.amount.toLocaleString("en-PK"); });
+    amt.append("Rs.", inp);
+
+    const del = document.createElement("button");
+    del.className = "del"; del.textContent = "Remove"; del.setAttribute("aria-label", "Remove " + it.name);
+    del.addEventListener("click", () => {
+      if (!confirm("Remove “" + it.name + "” from this month?")) return;
+      state.months[ym] = list.filter((x) => x.id !== it.id); save(); render();
+    });
+
+    li.append(name, btn, amt, del);
+    ul.append(li);
+  }
+  updateSummary();
+}
+
+// Events
+$("#prev").addEventListener("click", () => shift(-1));
+$("#next").addEventListener("click", () => shift(1));
+function shift(d) {
+  const [y, m] = ym.split("-").map(Number);
+  ym = monthKey(new Date(y, m - 1 + d, 1)); render();
+}
+
+$("#budget").addEventListener("input", (e) => { state.budget = num(e.target.value); save(); updateSummary(); });
+$("#budget").addEventListener("focus", (e) => { e.target.value = state.budget || ""; e.target.select(); });
+$("#budget").addEventListener("blur", (e) => { e.target.value = state.budget.toLocaleString("en-PK"); });
+
+$("#addForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const name = $("#newName").value.trim(), amount = num($("#newAmt").value);
+  if (!name) return;
+  items().push({ id: uid(), name, amount, status: "pending" });
+  save(); e.target.reset(); render();
+});
+
+$("#resetMonth").addEventListener("click", () => {
+  if (!confirm("Set every expense this month back to Pending? Amounts stay as they are.")) return;
+  items().forEach((i) => (i.status = "pending")); save(); render();
+});
+
+$("#export").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "expenses-backup-" + monthKey(new Date()) + ".json";
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast("Backup saved to Downloads.");
+});
+
+$("#import").addEventListener("click", () => $("#file").click());
+$("#file").addEventListener("change", async (e) => {
+  const f = e.target.files[0]; e.target.value = "";
+  if (!f) return;
+  try {
+    const s = JSON.parse(await f.text());
+    if (typeof s.budget !== "number" || !s.months || typeof s.months !== "object") throw new Error("bad shape");
+    if (!confirm("Replace all current data with this backup?")) return;
+    state = s; save(); render(); toast("Backup restored.");
+  } catch (err) { toast("That file is not a valid backup."); }
+});
+
+// Ask the browser not to evict our data under storage pressure (best effort)
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
+
+render();
+</script>
+</body>
+</html>
